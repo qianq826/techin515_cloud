@@ -117,59 +117,53 @@ def get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime):
 
     return time_of_day, weather_condition
 
-def calculate_gradient_color(dt, wake_up_time, bedtime):
-    now = datetime.now(dt.tzinfo)
-    wake_time_dt = datetime.combine(now.date(), wake_up_time, tzinfo=dt.tzinfo)
-    bedtime_dt = datetime.combine(now.date(), bedtime, tzinfo=dt.tzinfo)
+from datetime import datetime, timedelta
 
-    # Correct for cases where the wake time or bedtime might have already passed
-    if dt.time() > wake_time_dt.time():
-        wake_time_dt += timedelta(days=1)
-    if dt.time() > bedtime_dt.time():
-        bedtime_dt -= timedelta(days=1)
+def calculate_all_gradient_colors(dt, wake_up_time, bedtime):
+    colors = []
+    max_seconds = 12 * 3600  # Considering half a day for a full gradient
+    # Ensure datetime has the correct tzinfo
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=pytz.UTC)
 
-    # Calculate time differences in seconds
-    seconds_until_wake = (wake_time_dt - dt).total_seconds()
-    seconds_until_bed = (bedtime_dt - dt).total_seconds()
-
-    # Normalize these times to a scale from 0 to 1 for gradient calculation
-    max_seconds = 12 * 3600  # Consider a half-day period for full gradient change
-    wake_gradient = max(0, min(1, 1 - (seconds_until_wake / max_seconds)))
-    bed_gradient = max(0, min(1, 1 - (seconds_until_bed / max_seconds)))
-
-    # Colors for morning (wake up) and evening (going to bed)
-    wake_color = interpolate_color((255, 255, 255), (255, 213, 128), wake_gradient)  # from white to morning color
-    bed_color = interpolate_color((135, 206, 235), (72, 61, 139), bed_gradient)      # from day to night color
-
-    return f'rgb{wake_color}', f'rgb{bed_color}'
-
-def interpolate_color(start_color, end_color, gradient):
-    return tuple(int(start_color[i] + (end_color[i] - start_color[i]) * gradient) for i in range(3))
-
-
-def get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime):
-    hour = dt.hour
-    wake_hour = wake_up_time.hour
-    bed_hour = bedtime.hour
+    # Normalize wake_up_time and bedtime to datetime objects
+    wake_time_dt = datetime.combine(dt.date(), wake_up_time, tzinfo=dt.tzinfo)
+    bedtime_dt = datetime.combine(dt.date(), bedtime, tzinfo=dt.tzinfo)
     
-    if wake_hour <= hour < wake_hour + 3:
-        time_of_day = 'morning'
-    elif wake_hour + 3 <= hour < bed_hour - 5:
-        time_of_day = 'day'
-    elif bed_hour - 5 <= hour < bed_hour:
-        time_of_day = 'evening'
-    else:
-        time_of_day = 'night'
+    # Adjust bedtime_dt to the next day if it's before wake_time_dt
+    if bedtime_dt <= wake_time_dt:
+        bedtime_dt += timedelta(days=1)
 
-    weather_condition = 'clear'
-    if 'rain' in weather_description.lower():
-        weather_condition = 'rainy'
-    elif 'cloud' in weather_description.lower():
-        weather_condition = 'cloudy'
-    elif 'clear' in weather_description.lower() or 'sun' in weather_description.lower():
-        weather_condition = 'sunny'
+    # Generate colors for each hour between wake_time_dt and bedtime_dt
+    current_time = wake_time_dt
+    while current_time <= bedtime_dt:
+        # Calculate gradients based on the time until wake and bed
+        seconds_until_wake = (wake_time_dt - current_time).total_seconds()
+        seconds_until_bed = (bedtime_dt - current_time).total_seconds()
 
-    return time_of_day, weather_condition
+        wake_gradient = max(0, min(1, seconds_until_wake / max_seconds))
+        bed_gradient = max(0, min(1, seconds_until_bed / max_seconds))
+
+        wake_color = interpolate_color((255, 255, 255), (255, 213, 128), wake_gradient)
+        bed_color = interpolate_color((135, 206, 235), (72, 61, 139), bed_gradient)
+
+        colors.append((f"rgb{wake_color}", f"rgb{bed_color}"))
+        current_time += timedelta(hours=1)
+
+    return colors
+
+def interpolate_color(start_color, end_color, factor):
+    # Interpolate between two RGB colors
+    return tuple(int(start_color[i] + (end_color[i] - start_color[i]) * factor) for i in range(3))
+
+def calculate__gradient_colors(dt, wake_up_time, bedtime):
+    colors = []
+    # Calculate gradient colors for each hour between wake-up time and bedtime
+    for hour in range(wake_up_time.hour, bedtime.hour + 1):
+        time = datetime(dt.year, dt.month, dt.day, hour, 0, 0, tzinfo=dt.tzinfo)
+        wake_color = calculate_all_gradient_colors(time, wake_up_time, bedtime)  # Change function name
+        colors.append(wake_color)
+    return colors
 
 def main():
     st.markdown("""
@@ -198,17 +192,27 @@ def main():
                 time_of_day, weather_condition = get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime)
                 
                 if sleep_mode:
-                    wake_color, bed_color = calculate_gradient_color(dt, wake_up_time, bedtime)
+                    colors = calculate_all_gradient_colors(dt, wake_up_time, bedtime)
                     st.success(f"Weather forecast for {location}: {weather_description}")
                     st.success(f"Local time in {location}: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
-                    st.markdown(f"#### Wake-Up Gradient Color")
-                    st.markdown(f'<div style="height: 20px; width: 100%; background: linear-gradient(to right, {wake_color}, {bed_color});"></div>', unsafe_allow_html=True)
+
+                    # Display the gradient color bar in the main page
+                    gradient_css = ', '.join([f"linear-gradient(to right, {color[0]}, {color[1]})" for color in colors])
+                    st.markdown(f"#### Wake-Up to Bedtime Gradient Colors")
+                    st.markdown(f'<div style="height: 20px; width: 100%; background: {gradient_css};"></div>', unsafe_allow_html=True)
+
+                    # Display single RGB colors in the sidebar with RGB values
+                    st.sidebar.header("Hourly Colors")
+                    for color in colors:
+                        st.sidebar.markdown(f"**{color[1]}**")
+                        st.sidebar.markdown(f"<div style='height: 20px; width: 100%; background-color: {color[1]}; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
                 else:
                     circadian_color = get_circadian_color(time_of_day, weather_condition)
                     st.success(f"Weather forecast for {location}: {weather_description}")
                     st.success(f"Local time in {location}: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
                     st.markdown(f"#### Circadian Color")
                     st.markdown(f'<div style="height: 20px; width: 100%; background-color: {circadian_color};"></div>', unsafe_allow_html=True)
+
             else:
                 st.error("Could not find this location.")
         else:
