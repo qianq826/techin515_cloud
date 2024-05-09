@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import pytz
 from PIL import Image
 
-
 # Setting up UI elements
 def setup_ui():
     st.set_page_config(page_title='Circadian Weather App Dashboard', layout='wide', initial_sidebar_state='expanded')
@@ -19,18 +18,28 @@ def setup_ui():
         </style>
         """, unsafe_allow_html=True)
     logo = Image.open("img/icon.png")
-    st.sidebar.image(logo.resize((60, 70)))
+    st.sidebar.image(logo.resize((400, 80)))
 
 setup_ui()
 
-# Function to geocode location using Nominatim API
 def geocode_location(location):
     url = "https://nominatim.openstreetmap.org/search"
+    headers = {'User-Agent': 'Your User Agent Name'}
     params = {'q': location, 'format': 'json'}
-    response = requests.get(url, params=params)
-    if response.status_code == 200 and response.json():
-        data = response.json()[0]
-        return float(data['lat']), float(data['lon'])
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if data:
+            first_result = data[0]
+            return float(first_result['lat']), float(first_result['lon'])
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 403:
+            st.error("The request was forbidden by the server. Please try again later or provide a different location.")
+        else:
+            st.error(f"An error occurred while geocoding location: {e}")
+    except Exception as e:
+        st.error(f"An error occurred while geocoding location: {e}")
     return None, None
 
 # Function to fetch weather from weather.gov
@@ -45,7 +54,8 @@ def fetch_weather(lat, lon):
         forecast_response.raise_for_status()
         forecast_data = forecast_response.json()
         return forecast_data['properties']['periods'][0]['shortForecast']
-    except requests.RequestException:
+    except Exception as e:
+        st.error(f"Error occurred while fetching weather data: {e}")
         return "Weather information not available."
 
 # Function to get local time based on latitude and longitude
@@ -88,7 +98,6 @@ def get_circadian_color(time_of_day, weather_condition):
     }
     return colors.get(time_of_day, {}).get(weather_condition, 'rgb(255, 255, 255)')  # Default color if key not found
 
-
 def get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime):
     hour = dt.hour
     wake_hour = wake_up_time.hour
@@ -119,7 +128,7 @@ def get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime):
 
 from datetime import datetime, timedelta
 
-def calculate_all_gradient_colors(dt, wake_up_time, bedtime):
+def calculate_all_gradient_colors(dt, wake_up_time, bedtime, weather_condition):
     colors = []
     max_seconds = 12 * 3600  # Considering half a day for a full gradient
     # Ensure datetime has the correct tzinfo
@@ -144,8 +153,19 @@ def calculate_all_gradient_colors(dt, wake_up_time, bedtime):
         wake_gradient = max(0, min(1, seconds_until_wake / max_seconds))
         bed_gradient = max(0, min(1, seconds_until_bed / max_seconds))
 
-        wake_color = interpolate_color((255, 255, 255), (255, 213, 128), wake_gradient)
-        bed_color = interpolate_color((135, 206, 235), (72, 61, 139), bed_gradient)
+        # Adjust colors based on weather condition
+        if weather_condition == 'sunny':
+            wake_color = interpolate_color((255, 255, 255), (255, 239, 213), wake_gradient)
+            bed_color = interpolate_color((135, 206, 250), (0, 51, 102), bed_gradient)
+        elif weather_condition == 'cloudy':
+            wake_color = interpolate_color((255, 255, 255), (176, 196, 222), wake_gradient)
+            bed_color = interpolate_color((135, 206, 235), (47, 79, 79), bed_gradient)
+        elif weather_condition == 'rainy':
+            wake_color = interpolate_color((255, 255, 255), (119, 136, 153), wake_gradient)
+            bed_color = interpolate_color((70, 130, 180), (0, 0, 128), bed_gradient)
+        else:  # Default to clear weather
+            wake_color = interpolate_color((255, 255, 255), (255, 213, 128), wake_gradient)
+            bed_color = interpolate_color((135, 206, 235), (72, 61, 139), bed_gradient)
 
         colors.append((f"rgb{wake_color}", f"rgb{bed_color}"))
         current_time += timedelta(hours=1)
@@ -178,7 +198,7 @@ def main():
         """, unsafe_allow_html=True)
     
     st.title('Circadian Hues')
-    location = st.text_input('Enter location (e.g., New York, Tokyo, London):')
+    location = st.text_input('Enter location in United Stated:')
     sleep_mode = st.checkbox('Activate Sleep Mode')
     wake_up_time = st.time_input("Wake up time", value=datetime.strptime("06:00", '%H:%M').time())
     bedtime = st.time_input("Bedtime", value=datetime.strptime("22:00", '%H:%M').time())
@@ -186,13 +206,13 @@ def main():
     if st.button('Get Circadian Colour'):
         if location:
             lat, lon = geocode_location(location)
-            if lat and lon:
+            if lat is not None and lon is not None:
                 weather_description = fetch_weather(lat, lon)
                 dt, _ = get_local_time(lat, lon)
                 time_of_day, weather_condition = get_time_of_day_and_weather(dt, weather_description, wake_up_time, bedtime)
                 
                 if sleep_mode:
-                    colors = calculate_all_gradient_colors(dt, wake_up_time, bedtime)
+                    colors = calculate_all_gradient_colors(dt, wake_up_time, bedtime, weather_condition)
                     st.success(f"Weather forecast for {location}: {weather_description}")
                     st.success(f"Local time in {location}: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
 

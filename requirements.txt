@@ -9,3 +9,4 @@ numpy
 matplotlib
 geosky
 countryinfo
+Flask
