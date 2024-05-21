@@ -13,16 +13,13 @@ connection_string = "HostName=iotdevice-esp32.azure-devices.net;DeviceId=iotdevi
 client = IoTHubDeviceClient.create_from_connection_string(connection_string)
 
 
-# Function to send RGB color to ESP32 via HTTP (existing method)
 def send_rgb_to_esp32(r, g, b):
-    url = f"http://<ESP32_IP_ADDRESS>/setColor?r={r}&g={g}&b={b}"
+    message = Message(f'{{"r":{r},"g":{g},"b":{b}}}')
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        st.success("Color set successfully!")
-    except requests.exceptions.RequestException as e:
-        st.error(f"Failed to set color: {e}")
-        
+        client.send_message(message)
+        st.success("Color set successfully via IoT Hub!")
+    except Exception as e:
+        st.error(f"Failed to send color via IoT Hub: {e}")     
 
 # Setting up UI elements
 def setup_ui():
@@ -293,4 +290,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
