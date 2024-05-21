@@ -10,3 +10,4 @@ matplotlib
 geosky
 countryinfo
 Flask
+azure-iot-device
