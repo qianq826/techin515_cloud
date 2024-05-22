@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import requests
 from timezonefinder import TimezoneFinder
@@ -5,6 +6,10 @@ from datetime import datetime, timedelta
 import pytz
 from PIL import Image
 from azure.iot.device import IoTHubDeviceClient, Message
+
+
+port = int(os.environ.get("PORT", 8501))
+st.run(port=port)
 
 
 # Replace with your IoT Hub connection string
