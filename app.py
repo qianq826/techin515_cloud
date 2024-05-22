@@ -8,10 +8,6 @@ from PIL import Image
 from azure.iot.device import IoTHubDeviceClient, Message
 
 
-port = int(os.environ.get("PORT", 8501))
-st.run(port=port)
-
-
 # Replace with your IoT Hub connection string
 connection_string = "HostName=iotdevice-esp32.azure-devices.net;DeviceId=iotdevice-esp32;SharedAccessKey=zRRWOwRfeaPCLAOyhGhLP7oEcblvtsIYOAIoTKd4oMM="
 # Create an IoT Hub client
