@@ -9,8 +9,8 @@ from azure.iot.hub import IoTHubRegistryManager
 
 
 # Replace with your IoT Hub connection string
-connection_string = "HostName=iotdevice-esp32.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=<change-me>"
-device_id = "<your-device-id>"
+connection_string = "HostName=iotdevice-esp32.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=R0mDqvmO/fU+pxKGyZDw4KSH7z3kibnHjAIoTGqyAew=;"
+device_id = "iotdevice-esp32"
 # Create an IoT Hub client
 client = IoTHubDeviceClient.create_from_connection_string(connection_string)
 
