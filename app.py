@@ -5,7 +5,7 @@ from timezonefinder import TimezoneFinder
 from datetime import datetime, timedelta
 import pytz
 from PIL import Image
-from azure.iot.device import IoTHubDeviceClient, Message
+from azure.iot.hub import IoTHubRegistryManager
 
 
 # Replace with your IoT Hub connection string
