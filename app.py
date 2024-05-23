@@ -10,14 +10,15 @@ from azure.iot.hub import IoTHubRegistryManager
 
 # Replace with your IoT Hub connection string
 connection_string = "HostName=iotdevice-esp32.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=<change-me>"
+device_id = "<your-device-id>"
 # Create an IoT Hub client
 client = IoTHubDeviceClient.create_from_connection_string(connection_string)
 
 
 def send_rgb_to_esp32(r, g, b):
-    message = Message(f'{{"r":{r},"g":{g},"b":{b}}}')
+    message = f'{{"r":{r},"g":{g},"b":{b}}}'
     try:
-        client.send_message(message)
+        client.send_c2d_message(device_id, message)
         st.success("Color set successfully via IoT Hub!")
     except Exception as e:
         st.error(f"Failed to send color via IoT Hub: {e}")     
